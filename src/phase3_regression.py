@@ -66,6 +66,22 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 from xgboost import XGBRegressor
 
+from plot_style import (
+    ACCENT,
+    BG,
+    DANGER,
+    LABEL_SIZE,
+    MUTED,
+    PALETTE,
+    PANEL,
+    SAFE,
+    TEXT,
+    apply_dark_theme,
+    save,
+    style_axes,
+    style_colorbar,
+)
+
 warnings.filterwarnings("ignore")
 
 SEED = 42
@@ -82,8 +98,7 @@ FEATURES = ["N", "d_over_lambda", "theta_scan_deg", "log_N", "gl_margin"]
 TARGETS = ["gain_dBi", "BW_MHz"]
 TARGET_UNITS = {"gain_dBi": "dBi", "BW_MHz": "MHz"}
 
-plt.rcParams["figure.dpi"] = 130
-plt.rcParams["savefig.bbox"] = "tight"
+apply_dark_theme()
 
 
 # --------------------------------------------------------------------------- #
@@ -236,45 +251,56 @@ def main() -> None:
     order = results[results.target == TARGETS[0]].sort_values("R2", ascending=False)["model"]
 
     for target, fname, colour, label in [
-        (TARGETS[0], "model_comparison_gain.png", "#2a6f97", "Gain"),
-        (TARGETS[1], "model_comparison_bw.png", "#b5651d", "Bandwidth"),
+        (TARGETS[0], "model_comparison_gain.png", PALETTE[0], "Gain"),
+        (TARGETS[1], "model_comparison_bw.png", PALETTE[3], "Bandwidth"),
     ]:
+        # sort by R^2 descending for this target
         sub = (
             results[results.target == target]
-            .set_index("model")
-            .loc[order]
-            .reset_index()
+            .sort_values("R2", ascending=False)
+            .reset_index(drop=True)
         )
-        fig, ax = plt.subplots(figsize=(10, 5.8))
-        bars = ax.bar(sub["model"], sub["R2"], color=colour, alpha=0.88,
-                      edgecolor="black", linewidth=0.6)
-        # highlight the winner
-        bars[0].set_color("#1b7f4b")
-        ax.bar_label(bars, fmt="%.3f", padding=3, fontsize=9, fontweight="bold")
-        # RMSE underneath so that models which are visually tied on R^2 are
-        # still distinguishable (all scores cluster near 1.0 for gain)
+        fig, ax = plt.subplots(figsize=(12, 7))
+        style_axes(ax, grid_axis="y")
+
+        bars = ax.bar(
+            sub["model"], sub["R2"], color=colour, alpha=0.90,
+            edgecolor="white", linewidth=0.7, width=0.66, zorder=3,
+        )
+        bars[0].set_color(SAFE)          # highlight the winner
+        bars[0].set_edgecolor("white")
+
+        # annotate every bar with its exact R^2
+        for bar, r2 in zip(bars, sub["R2"]):
+            ax.annotate(
+                f"{r2:.4f}",
+                (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                ha="center", va="bottom", fontsize=10, fontweight="bold",
+                color=TEXT,
+            )
+        # RMSE inside each bar (models are visually tied near 1.0 on gain)
         for bar, rmse in zip(bars, sub["RMSE"]):
             ax.annotate(
                 f"RMSE {rmse:.3f}",
-                (bar.get_x() + bar.get_width() / 2, 0.012),
-                ha="center", va="bottom", fontsize=7.2, rotation=90,
-                color="white", alpha=0.95,
+                (bar.get_x() + bar.get_width() / 2, 0.02),
+                ha="center", va="bottom", fontsize=9, rotation=90,
+                color="white", alpha=0.85,
             )
 
-        ax.axhline(0, color="black", lw=0.9)
         threshold = 0.90 if target == "gain_dBi" else 0.70
-        ax.axhline(threshold, color="crimson", ls="--", lw=1.3,
-                   label=f"Phase 5 target: R² ≥ {threshold:.2f}")
-        ax.set_ylabel("$R^2$  (test set)")
-        ax.set_title(f"Model comparison — $R^2$ for {label.lower()} prediction ({target})")
+        ax.axhline(threshold, color=DANGER, ls="--", lw=2.2, zorder=4,
+                   label=f"Spec minimum  ($R^2$ = {threshold:.2f})")
+        ax.legend(loc="lower right", fontsize=12)
+
+        ax.set_ylabel("$R^2$   (test set)")
+        ax.set_title(
+            f"Model comparison \u2014 $R^2$ for {label.lower()} prediction ({target})"
+        )
         ax.set_xticks(range(len(sub)))
-        ax.set_xticklabels(sub["model"], rotation=32, ha="right")
-        lo = min(0.0, float(sub["R2"].min())) - 0.08
-        ax.set_ylim(lo, max(1.02, float(sub["R2"].max()) + 0.10))
-        ax.legend(loc="lower right", fontsize=9)
-        ax.grid(axis="y", alpha=0.35)
-        fig.savefig(FIG_DIR / fname)
-        plt.close(fig)
+        ax.set_xticklabels(sub["model"], rotation=28, ha="right", color=TEXT)
+        lo = min(0.0, float(sub["R2"].min())) - 0.10
+        ax.set_ylim(lo, max(1.02, float(sub["R2"].max()) + 0.12))
+        save(fig, FIG_DIR / fname)
         print(f"[figure] figures/{fname}")
 
     # ------------------------------------------------------------------ #
@@ -284,32 +310,41 @@ def main() -> None:
     best_gain = best["gain_dBi"]
     y_pred_best = predictions["gain_dBi"][best_gain]
 
-    fig, ax = plt.subplots(figsize=(7.4, 6.6))
-    ax.scatter(y_test_gain, y_pred_best, s=58, alpha=0.82, c="#2a6f97",
-               edgecolor="white", linewidth=0.7, label="test configurations")
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax)
+    m = evaluate(y_test_gain, y_pred_best)
+    resid = np.abs(y_test_gain - y_pred_best)
+
+    sc = ax.scatter(
+        y_test_gain, y_pred_best, c=resid, cmap="plasma", s=210,
+        edgecolor="white", linewidth=0.8, zorder=3, alpha=0.95,
+    )
+    cbar = fig.colorbar(sc, ax=ax, shrink=0.85, pad=0.02)
+    cbar.set_label("Absolute Error  (dBi)", fontsize=LABEL_SIZE)
+    style_colorbar(cbar)
+
     lo = min(y_test_gain.min(), y_pred_best.min()) - 0.6
     hi = max(y_test_gain.max(), y_pred_best.max()) + 0.6
-    ax.plot([lo, hi], [lo, hi], "k--", lw=1.6, label="$y = x$ (perfect prediction)")
-    m = evaluate(y_test_gain, y_pred_best)
+    ax.plot([lo, hi], [lo, hi], "--", color=ACCENT, lw=2.0,
+            label="$y = x$  (perfect prediction)", zorder=2)
+
     ax.text(
         0.04, 0.96,
-        f"best model: {best_gain}\n"
         f"$R^2$ = {m['R2']:.4f}\n"
         f"RMSE = {m['RMSE']:.3f} dBi\n"
         f"MAE  = {m['MAE']:.3f} dBi",
-        transform=ax.transAxes, va="top", ha="left", fontsize=10,
-        bbox=dict(boxstyle="round,pad=0.45", fc="white", ec="#2a6f97", alpha=0.92),
+        transform=ax.transAxes, va="top", ha="left", fontsize=LABEL_SIZE,
+        color=TEXT, linespacing=1.5,
+        bbox=dict(boxstyle="round,pad=0.5", fc=PANEL, ec=ACCENT, lw=1.5, alpha=0.96),
     )
     ax.set_xlim(lo, hi)
     ax.set_ylim(lo, hi)
     ax.set_aspect("equal")
-    ax.set_xlabel("Simulated (analytical) gain, dBi")
-    ax.set_ylabel("Predicted gain, dBi")
-    ax.set_title(f"Predicted vs. simulated gain — {best_gain}")
-    ax.legend(loc="lower right", fontsize=9)
-    ax.grid(alpha=0.3)
-    fig.savefig(FIG_DIR / "predicted_vs_actual_gain.png")
-    plt.close(fig)
+    ax.set_xlabel("Simulated (analytical) gain  (dBi)")
+    ax.set_ylabel("Predicted gain  (dBi)")
+    ax.set_title(f"Predicted vs. simulated gain \u2014 {best_gain}")
+    ax.legend(loc="lower right", fontsize=12)
+    save(fig, FIG_DIR / "predicted_vs_actual_gain.png")
     print("[figure] figures/predicted_vs_actual_gain.png")
 
     # ------------------------------------------------------------------ #
@@ -326,21 +361,29 @@ def main() -> None:
     print("\n[importance] Random Forest feature_importances_")
     print(fi_df.to_string(float_format=lambda v: f"{v:.4f}"))
 
-    fig, ax = plt.subplots(figsize=(9.2, 5.8))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax, grid_axis="y")
     xpos = np.arange(len(fi_df))
-    width = 0.4
-    ax.bar(xpos - width / 2, fi_df["gain_dBi"], width, label="gain_dBi",
-           color="#2a6f97", edgecolor="black", linewidth=0.5)
-    ax.bar(xpos + width / 2, fi_df["BW_MHz"], width, label="BW_MHz",
-           color="#b5651d", edgecolor="black", linewidth=0.5)
+    width = 0.38
+    b1 = ax.bar(xpos - width / 2, fi_df["gain_dBi"], width, label="gain_dBi",
+                color=PALETTE[0], edgecolor="white", linewidth=0.7, zorder=3)
+    b2 = ax.bar(xpos + width / 2, fi_df["BW_MHz"], width, label="BW_MHz",
+                color=PALETTE[3], edgecolor="white", linewidth=0.7, zorder=3)
+    for bars in (b1, b2):
+        for bar in bars:
+            h = bar.get_height()
+            ax.annotate(
+                f"{h:.3f}",
+                (bar.get_x() + bar.get_width() / 2, h),
+                ha="center", va="bottom", fontsize=9.5, color=TEXT,
+            )
     ax.set_xticks(xpos)
-    ax.set_xticklabels(fi_df.index)
-    ax.set_ylabel("Feature importance (mean decrease in impurity)")
+    ax.set_xticklabels(fi_df.index, color=TEXT)
+    ax.set_ylabel("Feature importance  (mean decrease in impurity)")
     ax.set_title("Random Forest feature importance for gain and bandwidth")
-    ax.legend()
-    ax.grid(axis="y", alpha=0.35)
-    fig.savefig(FIG_DIR / "feature_importance.png")
-    plt.close(fig)
+    ax.legend(fontsize=12)
+    ax.margins(y=0.10)
+    save(fig, FIG_DIR / "feature_importance.png")
     print("[figure] figures/feature_importance.png")
 
     fi_df.to_csv(RESULT_DIR / "feature_importance.csv", float_format="%.6f")

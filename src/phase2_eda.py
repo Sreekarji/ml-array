@@ -30,6 +30,23 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from plot_style import (
+    ACCENT,
+    BG,
+    DANGER,
+    DARK_DIV,
+    LABEL_SIZE,
+    MUTED,
+    PALETTE,
+    PANEL,
+    SAFE,
+    TEXT,
+    apply_dark_theme,
+    save,
+    style_axes,
+    style_colorbar,
+)
+
 SEED = 42
 np.random.seed(SEED)
 
@@ -39,8 +56,7 @@ FIG_DIR = REPO_ROOT / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 sns.set_theme(style="whitegrid", context="notebook")
-plt.rcParams["figure.dpi"] = 120
-plt.rcParams["savefig.bbox"] = "tight"
+apply_dark_theme()
 
 
 def load_dataset() -> pd.DataFrame:
@@ -115,77 +131,85 @@ def main() -> None:
     section("5. FIGURES")
 
     # --- (a) gain vs spacing, coloured by N ---------------------------- #
-    fig, ax = plt.subplots(figsize=(9, 5.5))
-    palette = sns.color_palette("viridis", n_colors=df["N"].nunique())
-    for colour, (n, grp) in zip(palette, df.groupby("N")):
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax)
+    cmap = plt.get_cmap("viridis")
+    ns = sorted(df["N"].unique())
+    colours = {n: cmap(0.12 + 0.80 * i / (len(ns) - 1)) for i, n in enumerate(ns)}
+
+    for n in ns:
+        grp = df[df["N"] == n]
         ax.scatter(
-            grp["d_over_lambda"],
-            grp["gain_dBi"],
-            s=46,
-            alpha=0.85,
-            color=colour,
-            edgecolor="white",
-            linewidth=0.6,
-            label=f"N = {n}  (mean {grp.gain_dBi.mean():.1f} dBi)",
+            grp["d_over_lambda"], grp["gain_dBi"], s=95, alpha=0.9,
+            color=colours[n], edgecolor=BG, linewidth=0.8,
+            label=f"N = {n}   (mean {grp.gain_dBi.mean():.1f} dBi)", zorder=3,
         )
-    # analytical mean curve for reference
     xs = np.linspace(df.d_over_lambda.min(), df.d_over_lambda.max(), 200)
-    for n, colour in zip(sorted(df["N"].unique()), palette):
+    for n in ns:
         ax.plot(xs, 10 * np.log10(n) + 2.15 - 0.5 * np.maximum(0, xs - 0.5),
-                color=colour, lw=1.0, alpha=0.55, ls="--")
-    ax.axvline(0.5, color="crimson", ls=":", lw=1.6)
+                color=colours[n], lw=1.6, alpha=0.75, ls="--", zorder=2)
+
+    ax.axvline(0.5, color=DANGER, ls=":", lw=2.0, zorder=1)
     ax.annotate(
         "d/$\\lambda$ = 0.5\nspacing penalty begins",
         xy=(0.5, ax.get_ylim()[1]),
-        xytext=(0.53, ax.get_ylim()[1] - 0.35),
-        color="crimson", fontsize=9, va="top",
-        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="crimson", alpha=0.85),
+        xytext=(0.55, ax.get_ylim()[1] - 0.55),
+        color=DANGER, fontsize=LABEL_SIZE - 2, va="top", ha="left",
+        bbox=dict(boxstyle="round,pad=0.4", fc=PANEL, ec=DANGER, alpha=0.95),
     )
-    ax.set_xlabel("Normalised element spacing  d/$\\lambda$")
+    ax.set_xlabel("Normalised element spacing   d/$\\lambda$")
     ax.set_ylabel("Gain  (dBi)")
-    ax.set_title("Array gain vs. element spacing, coloured by number of elements (N)")
-    ax.legend(title="Elements", fontsize=9, loc="center left",
-              bbox_to_anchor=(0.02, 0.42))
+    ax.set_title("Array gain vs. element spacing, coloured by number of elements")
+    ax.legend(title="Elements", fontsize=11, title_fontsize=11,
+              loc="center left", bbox_to_anchor=(0.02, 0.42))
     ax.margins(y=0.10)
-    fig.savefig(FIG_DIR / "gain_vs_spacing.png")
-    plt.close(fig)
-    print(f"  saved -> figures/gain_vs_spacing.png")
+    save(fig, FIG_DIR / "gain_vs_spacing.png")
+    print("  saved -> figures/gain_vs_spacing.png")
 
     # --- (b) grating lobe distribution --------------------------------- #
-    fig, ax = plt.subplots(figsize=(6.6, 5.0))
-    ax = sns.countplot(
-        data=df, x="grating_lobe", hue="grating_lobe",
-        palette={0: "#2e8b57", 1: "#c0392b"}, legend=False, ax=ax,
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax, grid_axis="y")
+    counts_sorted = counts.reindex([0, 1]).fillna(0).astype(int)
+    bars = ax.bar(
+        ["0 \u2014 grating-lobe free", "1 \u2014 grating lobe present"],
+        counts_sorted.values,
+        color=[SAFE, DANGER], edgecolor="white", linewidth=1.2, width=0.56, zorder=3,
     )
-    for patch, count in zip(ax.patches, counts.reindex([0, 1]).fillna(0).astype(int)):
-        total = len(df)
+    total = len(df)
+    for bar, count in zip(bars, counts_sorted.values):
         ax.annotate(
             f"{count}\n({100 * count / total:.1f}%)",
-            (patch.get_x() + patch.get_width() / 2, patch.get_height()),
-            ha="center", va="bottom", fontsize=11, fontweight="bold",
+            (bar.get_x() + bar.get_width() / 2, bar.get_height()),
+            ha="center", va="bottom", fontsize=LABEL_SIZE + 1,
+            fontweight="bold", color=TEXT, linespacing=1.35,
         )
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels(["0 - grating-lobe free", "1 - grating lobe present"])
-    ax.set_xlabel("")
     ax.set_ylabel("Number of configurations")
-    ax.set_title("Grating-lobe class distribution (250 ULA configurations)")
-    ax.set_ylim(0, counts.max() * 1.22)
-    fig.savefig(FIG_DIR / "grating_lobe_distribution.png")
-    plt.close(fig)
-    print(f"  saved -> figures/grating_lobe_distribution.png")
+    ax.set_xlabel("")
+    ax.set_title("Grating-lobe class distribution  (250 ULA configurations)")
+    ax.set_ylim(0, counts_sorted.max() * 1.24)
+    save(fig, FIG_DIR / "grating_lobe_distribution.png")
+    print("  saved -> figures/grating_lobe_distribution.png")
 
     # --- (c) correlation heatmap --------------------------------------- #
     numeric = df.select_dtypes(include=[np.number])
     corr = numeric.corr(method="pearson")
-    fig, ax = plt.subplots(figsize=(9.2, 7.6))
-    sns.heatmap(
-        corr, annot=True, fmt=".2f", cmap="RdBu_r", vmin=-1, vmax=1,
-        square=True, linewidths=0.6, cbar_kws={"shrink": 0.8}, ax=ax,
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax, grid_axis="neither")
+    ax.grid(False)
+    heat = sns.heatmap(
+        corr, annot=True, fmt=".2f", cmap=DARK_DIV, vmin=-1, vmax=1,
+        square=True, linewidths=1.0, linecolor=BG,
+        cbar_kws={"shrink": 0.80}, ax=ax,
+        annot_kws={"color": TEXT, "fontsize": 10, "fontweight": "bold"},
     )
+    style_colorbar(heat.collections[0].colorbar)
     ax.set_title("Pearson correlation matrix of ULA sweep features")
-    fig.savefig(FIG_DIR / "correlation_heatmap.png")
-    plt.close(fig)
-    print(f"  saved -> figures/correlation_heatmap.png")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=40, ha="right", color=TEXT)
+    ax.set_yticklabels(ax.get_yticklabels(), rotation=0, color=TEXT)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    save(fig, FIG_DIR / "correlation_heatmap.png")
+    print("  saved -> figures/correlation_heatmap.png")
 
     # correlation of each feature with the two targets, as text
     print("\n  |corr| with targets (top features):")

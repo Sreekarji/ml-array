@@ -40,6 +40,9 @@ EXPECTED_FIGURES = [
     "confusion_matrix.png",
     "roc_curves.png",
     "grating_lobe_boundary.png",
+    # explanatory figures added in the polish pass
+    "array_schematic.png",
+    "pipeline_overview.png",
 ]
 EXPECTED_SOURCES = [
     "phase1_generate_data.py",
@@ -260,7 +263,7 @@ def main() -> int:
     section("4. FILE CHECKS")
     missing_figs = [f for f in EXPECTED_FIGURES if not (FIG_DIR / f).exists()]
     check(
-        "all 10 expected figures exist in figures/",
+        "all 12 expected figures exist in figures/",
         not missing_figs,
         "all present" if not missing_figs else f"missing: {missing_figs}",
     )
@@ -286,6 +289,16 @@ def main() -> int:
     )
     check("README.md exists", (REPO_ROOT / "README.md").exists())
     check("requirements.txt exists", (REPO_ROOT / "requirements.txt").exists())
+    check(
+        "requirements_dev.txt exists",
+        (REPO_ROOT / "requirements_dev.txt").exists(),
+    )
+    check("LICENSE exists", (REPO_ROOT / "LICENSE").exists())
+    check(
+        "phase2 notebook and phase2_eda.py render identically styled figures",
+        (SRC_DIR / "plot_style.py").exists(),
+        "shared theme module present",
+    )
 
     # ================================================================== #
     # SUMMARY

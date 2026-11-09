@@ -48,6 +48,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
 from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -66,6 +67,22 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC
 from xgboost import XGBClassifier
+
+from plot_style import (
+    ACCENT,
+    BG,
+    DANGER,
+    LABEL_SIZE,
+    MUTED,
+    PALETTE,
+    PANEL,
+    SAFE,
+    TEXT,
+    apply_dark_theme,
+    save,
+    style_axes,
+    style_colorbar,
+)
 
 warnings.filterwarnings("ignore")
 
@@ -103,16 +120,15 @@ LINEWIDTHS = {
 }
 
 COLOURS = {
-    "Logistic Regression": "#1f77b4",
-    "Random Forest": "#2ca02c",
-    "Gradient Boosting": "#d62728",
-    "XGBoost": "#9467bd",
-    "SVM": "#ff7f0e",
-    "KNN": "#17becf",
+    "Logistic Regression": PALETTE[0],
+    "Random Forest": PALETTE[2],
+    "Gradient Boosting": PALETTE[6],
+    "XGBoost": PALETTE[4],
+    "SVM": PALETTE[3],
+    "KNN": PALETTE[5],
 }
 
-plt.rcParams["figure.dpi"] = 130
-plt.rcParams["savefig.bbox"] = "tight"
+apply_dark_theme()
 
 
 def build_classifiers() -> dict[str, object]:
@@ -287,46 +303,56 @@ def main() -> None:
     # ------------------------------------------------------------------ #
     # Figure: confusion matrix of the best classifier
     # ------------------------------------------------------------------ #
-    fig, ax = plt.subplots(figsize=(7.0, 5.8))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax, grid_axis="none")
+    # panel -> accent ramp so every cell stays legible on the dark canvas
+    cm_cmap = LinearSegmentedColormap.from_list(
+        "dark_blues", ["#1e293b", "#1d4ed8", "#38bdf8"]
+    )
     disp = ConfusionMatrixDisplay(
         confusion_matrix=cms[best], display_labels=["no lobe (0)", "lobe (1)"]
     )
-    disp.plot(ax=ax, cmap="Blues", colorbar=False, values_format="d")
+    disp.plot(ax=ax, cmap=cm_cmap, colorbar=False, values_format="d",
+              text_kw={"fontsize": 30, "fontweight": "bold", "color": TEXT})
     ax.set_title(
-        f"Confusion matrix — best classifier: {best}\n"
-        f"accuracy {results.iloc[0]['accuracy']:.3f} | "
-        f"ROC-AUC {results.iloc[0]['roc_auc']:.3f} | "
-        f"n = {len(y_test)} held-out configurations",
-        fontsize=11,
+        f"Confusion matrix \u2014 {best}\n"
+        f"accuracy {results.iloc[0]['accuracy']:.4f}  \u00b7  "
+        f"ROC-AUC {results.iloc[0]['roc_auc']:.4f}  \u00b7  "
+        f"n = {len(y_test)} held-out configurations"
     )
-    ax.set_xlabel("Predicted label")
-    ax.set_ylabel("True label")
-    fig.savefig(FIG_DIR / "confusion_matrix.png")
-    plt.close(fig)
+    ax.set_xlabel("Predicted label", fontsize=LABEL_SIZE)
+    ax.set_ylabel("True label", fontsize=LABEL_SIZE)
+    ax.set_xticklabels(["no lobe (0)", "lobe (1)"], color=TEXT)
+    ax.set_yticklabels(["no lobe (0)", "lobe (1)"], color=TEXT)
+    ax.grid(False)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    save(fig, FIG_DIR / "confusion_matrix.png")
     print("[figure] figures/confusion_matrix.png")
 
     # ------------------------------------------------------------------ #
     # Figure: ROC curves, all classifiers on one axis
     # ------------------------------------------------------------------ #
-    fig, ax = plt.subplots(figsize=(7.4, 6.6))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax)
     for name in build_classifiers():
         fpr, tpr, _ = roc_curve(y_test, proba[name])
         auc = roc_auc_score(y_test, proba[name])
         ax.plot(
             fpr, tpr, lw=LINEWIDTHS[name], color=COLOURS[name],
-            ls=LINESTYLES[name], alpha=0.9,
-            label=f"{name}  (AUC = {auc:.4f})",
+            ls=LINESTYLES[name], alpha=0.92, zorder=3,
+            label=f"{name}   (AUC = {auc:.4f})",
         )
-    ax.plot([0, 1], [0, 1], "k--", lw=1.2, label="chance (AUC = 0.5)")
+    ax.plot([0, 1], [0, 1], ls="--", lw=1.8, color=MUTED,
+            label="Random   (AUC = 0.5)", zorder=2)
     ax.set_xlim(-0.01, 1.01)
     ax.set_ylim(-0.01, 1.02)
     ax.set_xlabel("False positive rate")
     ax.set_ylabel("True positive rate")
-    ax.set_title("ROC curves — grating-lobe classifiers (held-out test set)")
-    ax.legend(loc="lower right", fontsize=9, framealpha=0.95)
-    ax.grid(alpha=0.3)
-    fig.savefig(FIG_DIR / "roc_curves.png")
-    plt.close(fig)
+    ax.set_title("ROC curves \u2014 grating-lobe classifiers (held-out test set)")
+    ax.legend(loc="lower right", fontsize=11, framealpha=0.96)
+    ax.grid(alpha=0.15)
+    save(fig, FIG_DIR / "roc_curves.png")
     print("[figure] figures/roc_curves.png")
 
     # ------------------------------------------------------------------ #
@@ -335,11 +361,9 @@ def main() -> None:
     theta_grid = np.linspace(0, 75, 400)
     boundary = 1.0 / (1.0 + np.abs(np.sin(np.deg2rad(theta_grid))))
 
-    fig, ax = plt.subplots(figsize=(9.2, 6.2))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    style_axes(ax)
 
-    # background: decision surface of the best tree/ensemble model evaluated on
-    # (d/lambda, theta) with N fixed at its median and the derived features
-    # recomputed consistently.
     n_ref = int(df["N"].median())
     d_axis = np.linspace(df.d_over_lambda.min() - 0.05, df.d_over_lambda.max() + 0.05, 260)
     t_axis = np.linspace(0, 75, 260)
@@ -355,49 +379,56 @@ def main() -> None:
         ]
     )
     Z = fitted[best].predict_proba(grid)[:, 1].reshape(DD.shape)
-    # shaded decision surface (P(grating lobe)) behind the measured labels
-    contour = ax.contourf(DD, TT, Z, levels=20, cmap="RdYlGn_r", alpha=0.30)
-    ax.contour(DD, TT, Z, levels=[0.5], colors="black", linewidths=1.4,
-               linestyles="-", alpha=0.8)
-    cbar = fig.colorbar(contour, ax=ax, shrink=0.82, pad=0.02)
-    cbar.set_label(f"P(grating lobe) — {best} decision surface", fontsize=9)
 
-    scatter = ax.scatter(
-        df["d_over_lambda"],
-        df["theta_scan_deg"],
-        c=df["grating_lobe"],
-        cmap="RdYlGn_r",
-        vmin=0,
-        vmax=1,
-        s=52,
-        edgecolor="black",
-        linewidth=0.45,
-        alpha=0.9,
+    # decision surface of the learned classifier
+    contour = ax.contourf(DD, TT, Z, levels=20, cmap="RdYlGn_r", alpha=0.20, zorder=1)
+    cbar = fig.colorbar(contour, ax=ax, shrink=0.84, pad=0.02)
+    cbar.set_label(f"P(grating lobe) \u2014 {best} decision surface", fontsize=LABEL_SIZE)
+    style_colorbar(cbar)
+
+    # shaded SAFE zone: everything below the theoretical threshold curve
+    ax.fill_between(
+        d_axis, 0, np.interp(d_axis, boundary, theta_grid),
+        color=SAFE, alpha=0.20, zorder=0,
     )
+    ax.fill_between(
+        d_axis, np.interp(d_axis, boundary, theta_grid), 75,
+        color=DANGER, alpha=0.16, zorder=0,
+    )
+
+    # measured labels, explicit green / red
+    for label, colour, name in [
+        (0, SAFE, "label 0 \u2014 grating-lobe free"),
+        (1, DANGER, "label 1 \u2014 grating lobe present"),
+    ]:
+        m = df["grating_lobe"] == label
+        ax.scatter(
+            df.loc[m, "d_over_lambda"], df.loc[m, "theta_scan_deg"],
+            s=230, color=colour, edgecolor="white", linewidth=1.1,
+            zorder=4, label=name,
+        )
+
     ax.plot(
-        boundary, theta_grid, "k--", lw=2.4,
-        label=r"theory: $d/\lambda = 1/(1+|\sin\theta_0|)$",
+        boundary, theta_grid, ls="--", lw=3.0, color=TEXT, zorder=5,
+        label=r"Theory:  $d/\lambda = 1/(1+|\sin\theta|)$",
     )
-    ax.set_xlabel(r"Normalised element spacing  $d/\lambda$")
-    ax.set_ylabel(r"Scan angle  $\theta_0$  (degrees)")
+
+    ax.text(0.33, 68, "SAFE ZONE", fontsize=13, fontweight="bold",
+            color=SAFE, alpha=0.95, ha="center")
+    # clear space: right of the curve, between the 30 deg and 45 deg rows
+    ax.text(1.17, 37, "GRATING\nLOBE", fontsize=13, fontweight="bold",
+            color=DANGER, alpha=0.95, ha="center", va="center", linespacing=1.35)
+
+    ax.set_xlabel(r"Normalised element spacing   $d/\lambda$")
+    ax.set_ylabel(r"Scan angle   $\theta_0$   (degrees)")
     ax.set_title(
-        "Grating-lobe boundary — measured labels, analytical curve and\n"
-        f"decision surface of the best classifier ({best}, N = {n_ref})"
+        "Grating-lobe boundary \u2014 labels vs. theory, with the learned decision surface\n"
+        f"({best}, N = {n_ref};  shaded = safe / forbidden regions)"
     )
     ax.set_xlim(d_axis.min(), d_axis.max())
     ax.set_ylim(0, 75)
-    handles = [
-        plt.Line2D([], [], marker="o", ls="", mfc="#2ca02c", mec="black",
-                   ms=9, label="label 0 — grating-lobe free"),
-        plt.Line2D([], [], marker="o", ls="", mfc="#d62728", mec="black",
-                   ms=9, label="label 1 — grating lobe present"),
-        plt.Line2D([], [], color="black", ls="--", lw=2.2,
-                   label=r"theory: $d/\lambda = 1/(1+|\sin\theta_0|)$"),
-    ]
-    ax.legend(handles=handles, loc="upper right", fontsize=9, framealpha=0.95)
-    ax.grid(alpha=0.25)
-    fig.savefig(FIG_DIR / "grating_lobe_boundary.png")
-    plt.close(fig)
+    ax.legend(loc="upper right", fontsize=11, framealpha=0.96)
+    save(fig, FIG_DIR / "grating_lobe_boundary.png")
     print("[figure] figures/grating_lobe_boundary.png")
 
     section("PHASE 4 COMPLETE")
