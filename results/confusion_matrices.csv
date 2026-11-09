@@ -1,0 +1,25 @@
+classifier,true_label,predicted_label,count
+Logistic Regression,0,0,18
+Logistic Regression,0,1,5
+Logistic Regression,1,0,1
+Logistic Regression,1,1,26
+Random Forest,0,0,23
+Random Forest,0,1,0
+Random Forest,1,0,0
+Random Forest,1,1,27
+Gradient Boosting,0,0,23
+Gradient Boosting,0,1,0
+Gradient Boosting,1,0,0
+Gradient Boosting,1,1,27
+XGBoost,0,0,23
+XGBoost,0,1,0
+XGBoost,1,0,0
+XGBoost,1,1,27
+SVM,0,0,22
+SVM,0,1,1
+SVM,1,0,1
+SVM,1,1,26
+KNN,0,0,21
+KNN,0,1,2
+KNN,1,0,0
+KNN,1,1,27
