@@ -39,7 +39,7 @@ FIG_DIR = REPO_ROOT / "figures"
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 sns.set_theme(style="whitegrid", context="notebook")
-plt.rcParams["figure.dpi"] = 130
+plt.rcParams["figure.dpi"] = 120
 plt.rcParams["savefig.bbox"] = "tight"
 
 
@@ -115,7 +115,7 @@ def main() -> None:
     section("5. FIGURES")
 
     # --- (a) gain vs spacing, coloured by N ---------------------------- #
-    fig, ax = plt.subplots(figsize=(9, 6))
+    fig, ax = plt.subplots(figsize=(9, 5.5))
     palette = sns.color_palette("viridis", n_colors=df["N"].nunique())
     for colour, (n, grp) in zip(palette, df.groupby("N")):
         ax.scatter(
@@ -138,13 +138,13 @@ def main() -> None:
         "d/$\\lambda$ = 0.5\nspacing penalty begins",
         xy=(0.5, ax.get_ylim()[1]),
         xytext=(0.53, ax.get_ylim()[1] - 0.35),
-        color="crimson", fontsize=9, va="top", ha="left",
+        color="crimson", fontsize=9, va="top",
         bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="crimson", alpha=0.85),
     )
     ax.set_xlabel("Normalised element spacing  d/$\\lambda$")
     ax.set_ylabel("Gain  (dBi)")
     ax.set_title("Array gain vs. element spacing, coloured by number of elements (N)")
-    ax.legend(title="Elements", frameon=True, fontsize=9, loc="center left",
+    ax.legend(title="Elements", fontsize=9, loc="center left",
               bbox_to_anchor=(0.02, 0.42))
     ax.margins(y=0.10)
     fig.savefig(FIG_DIR / "gain_vs_spacing.png")
@@ -152,7 +152,7 @@ def main() -> None:
     print(f"  saved -> figures/gain_vs_spacing.png")
 
     # --- (b) grating lobe distribution --------------------------------- #
-    fig, ax = plt.subplots(figsize=(6.6, 5.2))
+    fig, ax = plt.subplots(figsize=(6.6, 5.0))
     ax = sns.countplot(
         data=df, x="grating_lobe", hue="grating_lobe",
         palette={0: "#2e8b57", 1: "#c0392b"}, legend=False, ax=ax,
