@@ -43,7 +43,7 @@ BORDER = RGBColor(0x33, 0x41, 0x55)
 # Figures currently on disk are light-background PNGs, so they get a thin accent
 # frame to read as intentional insets on the dark canvas. Flip to False once the
 # dark-theme figures are in place.
-LIGHT_FIGURES = True
+LIGHT_FIGURES = False          # figures are now dark-theme PNGs
 FRAME_COLOR = ACCENT if LIGHT_FIGURES else BORDER
 
 FONT = "Calibri"
@@ -296,30 +296,33 @@ def slide_physics(prs):
     s = new_slide(prs, 3, "Grating Lobe Physics")
 
     # prominent threshold equation
-    add_rect(s, 0.85, 1.58, 7.35, 1.15, fill=PANEL, line=ACCENT, line_w=1.25, rounded=True)
+    add_rect(s, 0.85, 1.58, 6.35, 1.10, fill=PANEL, line=ACCENT, line_w=1.25, rounded=True)
     add_text(
-        s, 0.95, 1.68, 7.15, 0.95,
+        s, 0.95, 1.66, 6.15, 0.95,
         "d  \u2264  \u03bb / (1 + |sin \u03b8max|)",
-        size=32, bold=True, color=ACCENT, align=PP_ALIGN.CENTER,
+        size=28, bold=True, color=ACCENT, align=PP_ALIGN.CENTER,
         anchor=MSO_ANCHOR.MIDDLE,
     )
 
     add_table(
-        s, 0.85, 3.02, 7.35, 2.00,
+        s, 0.85, 2.92, 6.35, 1.95,
         [
             ["Condition", "Maximum spacing"],
             ["Broadside only (\u03b8 = 0\u00b0)", "d < \u03bb"],
             ["Full scan (\u03b8 = 90\u00b0)", "d < \u03bb/2"],
             ["\u00b150\u00b0 scan", "d < 0.566\u03bb"],
         ],
-        col_widths=[1.45, 1.0], font_size=17,
+        col_widths=[1.45, 1.0], font_size=15,
     )
 
     add_text(
-        s, 0.85, 5.35, 11.6, 0.70,
+        s, 0.85, 5.08, 6.35, 0.95,
         "This equation defines the binary classification boundary used in Phase 4.",
-        size=20, color=MUTED, italic=True,
+        size=17, color=MUTED, italic=True, line_spacing=1.15,
     )
+
+    # ULA geometry schematic
+    add_figure(s, "array_schematic.png", 7.45, 1.52, 5.35, 5.25)
     return s
 
 
@@ -327,37 +330,38 @@ def slide_dataset(prs):
     s = new_slide(prs, 4, "Dataset Generation \u2014 ULA Analytical Model")
 
     add_table(
-        s, 0.85, 1.68, 7.30, 2.45,
+        s, 0.85, 1.68, 7.30, 2.35,
         [
             ["Parameter", "Swept values"],
             ["N (elements)", "2, 4, 8, 16, 32"],
             ["d/\u03bb (spacing)", "0.3 \u2192 1.2, step 0.1"],
             ["\u03b8 (scan angle)", "0\u00b0, 15\u00b0, 30\u00b0, 45\u00b0, 60\u00b0"],
         ],
-        col_widths=[1.15, 1.55], font_size=17,
+        col_widths=[1.15, 1.55], font_size=16,
     )
 
-    add_callout(s, 8.55, 1.68, 3.95, 1.15, "250 total\ncombinations", size=21)
-    add_callout(s, 8.55, 2.98, 3.95, 1.15, "5 \u00d7 10 \u00d7 5\nfull factorial", size=19)
+    add_callout(s, 0.85, 4.22, 3.45, 0.86, "250 total combinations", size=15)
+    add_callout(s, 4.55, 4.22, 3.60, 0.86, "5 \u00d7 10 \u00d7 5  full factorial", size=15)
 
     add_text(
-        s, 0.85, 4.45, 11.65, 0.40,
-        "Feature engineering", size=20, bold=True, color=ACCENT,
+        s, 0.85, 5.28, 7.30, 0.36,
+        "Feature engineering", size=17, bold=True, color=ACCENT,
     )
     add_bullets(
-        s, 0.85, 4.92, 11.65, 1.10,
+        s, 0.85, 5.64, 7.30, 0.95,
         [
-            "log_N = log\u2082(N)   \u2014 linearises the aperture term",
-            "gl_margin = threshold \u2212 d/\u03bb   \u2014 signed distance to the grating-lobe boundary",
+            "log_N = log\u2082(N)  \u2014 linearises the aperture term",
+            "gl_margin = threshold \u2212 d/\u03bb  \u2014 distance to the boundary",
         ],
-        size=19, gap=8,
+        size=14, gap=5,
     )
 
     add_text(
-        s, 0.85, 6.28, 11.65, 0.55,
+        s, 0.85, 6.72, 7.30, 0.60,
         "Generated analytically from ULA physics \u2014 no EM simulator required.",
-        size=18, italic=True, color=MUTED,
+        size=14, italic=True, color=MUTED, line_spacing=1.1,
     )
+    add_figure(s, "pipeline_overview.png", 8.55, 1.62, 4.35, 5.35)
     return s
 
 
@@ -540,7 +544,7 @@ def slide_summary(prs):
 
     add_text(
         s, 0.70, 4.30, 6.45, 1.00,
-        "37/37 verification checks passed",
+        "42/42 verification checks passed",
         size=19, bold=True, color=ACCENT,
     )
     add_text(
