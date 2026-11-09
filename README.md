@@ -318,8 +318,10 @@ python src/phase5_verification.py      # prints PASS/FAIL for all 37 checks (exi
 jupyter notebook notebooks/phase2_eda.ipynb
 ```
 
-Everything is seeded with `random_state = 42`, so results are bit-for-bit reproducible. Total runtime
-is well under a minute on a laptop CPU.
+Everything is seeded with `random_state = 42`. Re-running the pipeline reproduces
+`data/array_sweep_data.csv`, every figure and every **metric** in `results/*.csv` bit-for-bit; the only
+column that changes between runs is `fit_seconds`, which records wall-clock training time by design.
+Total runtime is well under a minute on a laptop CPU.
 
 ---
 
