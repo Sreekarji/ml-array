@@ -281,6 +281,9 @@ ml-array/
 │   └── grating_lobe_boundary.png
 ├── notebooks/
 │   └── phase2_eda.ipynb              # executed EDA notebook
+├── presentations/
+│   ├── ML_Antenna_Array_Presentation.pptx   # 12-slide deck, 16:9 dark theme
+│   └── build_deck.py                 # regenerates the deck from figures/
 ├── results/
 │   ├── regression_results.csv        # 18 rows (9 models × 2 targets)
 │   ├── classifier_results.csv        # 6 rows + per-class metrics and confusion matrices
@@ -294,6 +297,23 @@ ml-array/
 │   └── phase5_verification.py        # 37 independent checks
 ├── README.md
 └── requirements.txt
+```
+
+---
+
+## Presentation
+
+A 12-slide, 16:9 dark-theme deck is available at
+**`presentations/ML_Antenna_Array_Presentation.pptx`** — title, problem statement, grating-lobe
+physics, dataset & methodology, EDA, the model zoo, gain and bandwidth results, validation,
+classifier results, summary, and future work with references. Every figure is embedded (no external
+links), so the file is self-contained and safe to present offline.
+
+The deck is generated programmatically, so it stays in sync with `figures/`:
+
+```bash
+pip install python-pptx pillow
+python presentations/build_deck.py
 ```
 
 ---
